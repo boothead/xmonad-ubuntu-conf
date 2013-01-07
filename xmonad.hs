@@ -14,25 +14,26 @@
   Repository: https://github.com/davidbrewer/xmonad-ubuntu-conf
 -}
 
-import XMonad
-import XMonad.Hooks.SetWMName
-import XMonad.Layout.Grid
-import XMonad.Layout.ResizableTile
-import XMonad.Layout.IM
-import XMonad.Layout.ThreeColumns
-import XMonad.Layout.NoBorders
-import XMonad.Layout.Circle
-import XMonad.Layout.PerWorkspace (onWorkspace)
-import XMonad.Layout.Fullscreen
-import XMonad.Util.EZConfig
-import XMonad.Util.Run
-import XMonad.Hooks.DynamicLog
-import XMonad.Actions.Plane
-import XMonad.Hooks.ManageDocks
-import XMonad.Hooks.UrgencyHook
-import qualified XMonad.StackSet as W
-import qualified Data.Map as M
-import Data.Ratio ((%))
+import qualified Data.Map                     as M
+import           Data.Ratio                   ((%))
+import           XMonad
+import           XMonad.Actions.Plane
+import           XMonad.Hooks.DynamicLog
+import           XMonad.Hooks.ManageDocks
+import           XMonad.Hooks.SetWMName
+import           XMonad.Hooks.UrgencyHook
+import           XMonad.Layout.Circle
+import           XMonad.Layout.Fullscreen
+import           XMonad.Layout.Grid
+import           XMonad.Layout.IM
+import           XMonad.Layout.NoBorders
+import           XMonad.Layout.PerWorkspace   (onWorkspace)
+import           XMonad.Layout.ResizableTile
+import           XMonad.Layout.ThreeColumns
+import qualified XMonad.StackSet              as W
+import           XMonad.Util.EZConfig
+import           XMonad.Util.Run
+import           XMonad.Util.WorkspaceCompare
 
 {-
   Xmonad configuration variables. These settings control some of the
@@ -43,7 +44,7 @@ myModMask            = mod4Mask       -- changes the mod key to "super"
 myFocusedBorderColor = "#ff0000"      -- color of focused border
 myNormalBorderColor  = "#cccccc"      -- color of inactive border
 myBorderWidth        = 1              -- width of border around windows
-myTerminal           = "terminator"   -- which terminal software to use
+myTerminal           = "gnome-terminal"   -- which terminal software to use
 myIMRosterTitle      = "Contact List" -- title of roster on IM workspace
 
 
