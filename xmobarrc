@@ -40,7 +40,7 @@ Config {
     ] 10,
 
     -- Date formatting
-    Run Date "%a %b %_d %l:%M" "date" 10,
+    Run Date "%a %b %_d %H:%M" "date" 10,
 
         
     -- This line tells xmobar to read input from stdin. That's how we
