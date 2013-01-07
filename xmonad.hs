@@ -319,7 +319,7 @@ myKeys = myKeyBindings ++
   [
     ((m .|. myModMask, key), screenWorkspace sc
       >>= flip whenJust (windows . f))
-      | (key, sc) <- zip [xK_w, xK_e, xK_r] [1,0,2]
+      | (key, sc) <- zip [xK_w, xK_e, xK_r] [0,1,2]
       , (f, m) <- [(W.view, 0), (W.shift, shiftMask)]
   ]
 
@@ -357,6 +357,7 @@ main = do
         . wrap myVisibleWSLeft myVisibleWSRight
       , ppUrgent = xmobarColor myUrgentWSColor ""
         . wrap myUrgentWSLeft myUrgentWSRight
+      , ppSort = mkWsSort getXineramaPhysicalWsCompare
     }
   }
     `additionalKeys` myKeys
