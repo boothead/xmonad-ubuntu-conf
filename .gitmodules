@@ -1,0 +1,6 @@
+[submodule "xmonad-log-applet"]
+	path = xmonad-log-applet
+	url = git://github.com/alexkay/xmonad-log-applet.git
+[submodule "xmobar"]
+	path = xmobar
+	url = https://github.com/jaor/xmobar.git

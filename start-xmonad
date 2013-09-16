@@ -37,8 +37,8 @@ xcompmgr -n &
 # connected screens and find out what names you should use to refer to them.
 
 # Activate primary screen
-xrandr --output VBOX0 --auto --primary
-xrandr --output VBOX1 --auto --right-of VBOX0
+xrandr --output eDP1 --auto --primary
+xrandr --output DP1 --auto --right-of eDP1
 
 #
 # LOAD SCREEN BACKGROUNDS
@@ -72,16 +72,16 @@ nitrogen --restore &
 # - window-strut "none" means windows are allowed to cover the tray. In
 #   other words, trust xmonad to handle this part.
 #
-stalonetray \
-  --icon-gravity E \
-  --geometry 5x1-0+0 \
-  --max-geometry 5x1-0+0 \
-  --background '#000000' \
-  --skip-taskbar \
-  --icon-size 24 \
-  --kludges force_icons_size \
-  --window-strut none \
-&
+# stalonetray \
+#   --icon-gravity E \
+#   --geometry 7x1-0+0 \
+#   --max-geometry 7x1-0+0 \
+#   --background '#000000' \
+#   --skip-taskbar \
+#   --icon-size 24 \
+#   --kludges force_icons_size \
+#   --window-strut none \
+gnome-panel &
 
 # Run the gnome-keyring-daemon to avoid issues you otherwise may encounter
 # when using gnome applications which expect access to the keyring, such

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-
   This is my xmonad configuration file.
   There are many like it, but this one is mine.
@@ -14,10 +15,13 @@
   Repository: https://github.com/davidbrewer/xmonad-ubuntu-conf
 -}
 
+module Main where
+
 import qualified Data.Map                     as M
 import           Data.Ratio                   ((%))
 import           XMonad
 import           XMonad.Actions.Plane
+import           XMonad.Config.Gnome
 import           XMonad.Hooks.DynamicLog
 import           XMonad.Hooks.ManageDocks
 import           XMonad.Hooks.SetWMName
@@ -34,6 +38,51 @@ import qualified XMonad.StackSet              as W
 import           XMonad.Util.EZConfig
 import           XMonad.Util.Run
 import           XMonad.Util.WorkspaceCompare
+
+import qualified Codec.Binary.UTF8.String     as UTF8
+import qualified DBus                         as D
+import qualified DBus.Client                  as D
+
+
+prettyPrinter :: D.Client -> PP
+prettyPrinter dbus = defaultPP
+    { ppOutput   = dbusOutput dbus
+    , ppTitle    = pangoSanitize
+    , ppCurrent  = pangoColor "green" . wrap "[" "]" . pangoSanitize
+    , ppVisible  = pangoColor "yellow" . wrap "(" ")" . pangoSanitize
+    , ppHidden   = const ""
+    , ppUrgent   = pangoColor "red"
+    , ppLayout   = const ""
+    , ppSep      = " "
+    }
+
+getWellKnownName :: D.Client -> IO ()
+getWellKnownName dbus = do
+  D.requestName dbus (D.busName_ "org.xmonad.Log")
+                [D.nameAllowReplacement, D.nameReplaceExisting, D.nameDoNotQueue]
+  return ()
+
+dbusOutput :: D.Client -> String -> IO ()
+dbusOutput dbus str = do
+    let signal = (D.signal "/org/xmonad/Log" "org.xmonad.Log" "Update") {
+            D.signalBody = [D.toVariant ("<b>" ++ (UTF8.decodeString str) ++ "</b>")]
+        }
+    D.emit dbus signal
+
+pangoColor :: String -> String -> String
+pangoColor fg = wrap left right
+  where
+    left  = "<span foreground=\"" ++ fg ++ "\">"
+    right = "</span>"
+
+pangoSanitize :: String -> String
+pangoSanitize = foldr sanitize ""
+  where
+    sanitize '>'  xs = "&gt;" ++ xs
+    sanitize '<'  xs = "&lt;" ++ xs
+    sanitize '\"' xs = "&quot;" ++ xs
+    sanitize '&'  xs = "&amp;" ++ xs
+    sanitize x    xs = x:xs
 
 {-
   Xmonad configuration variables. These settings control some of the
@@ -89,7 +138,7 @@ myWorkspaces =
   [
     "7:Chat",  "8:Dbg", "9:Pix",
     "4:Docs",  "5:Dev", "6:Web",
-    "1:Term",  "2:Hub", "3:Mail",
+    "1:Term",  "2:Sys", "3:Remote",
     "0:VM",    "Extr1", "Extr2"
   ]
 
@@ -144,7 +193,8 @@ defaultLayouts = smartBorders(avoidStruts(
 
   -- Circle layout places the master window in the center of the screen.
   -- Remaining windows appear in a circle around it
-  ||| Circle))
+  ||| Circle
+  ))
 
 
 -- Here we define some layouts which will be assigned to specific
@@ -171,6 +221,7 @@ gimpLayout = smartBorders(avoidStruts(ThreeColMid 1 (3/100) (3/4)))
 myLayouts =
   onWorkspace "7:Chat" chatLayout
   $ onWorkspace "9:Pix" gimpLayout
+  $ onWorkspace"3:Remote" Grid
   $ defaultLayouts
 
 
@@ -259,13 +310,11 @@ myManagementHooks = [
   resource =? "synapse" --> doIgnore
   , resource =? "stalonetray" --> doIgnore
   , className =? "rdesktop" --> doFloat
-  , (className =? "Komodo IDE") --> doF (W.shift "5:Dev")
-  , (className =? "Komodo IDE" <&&> resource =? "Komodo_find2") --> doFloat
-  , (className =? "Komodo IDE" <&&> resource =? "Komodo_gotofile") --> doFloat
-  , (className =? "Komodo IDE" <&&> resource =? "Toplevel") --> doFloat
   , (className =? "Empathy") --> doF (W.shift "7:Chat")
   , (className =? "Pidgin") --> doF (W.shift "7:Chat")
   , (className =? "Gimp-2.8") --> doF (W.shift "9:Pix")
+  , className =? "Unity-2d-panel" --> doIgnore
+  , className =? "Unity-2d-launcher" --> doFloat
   ]
 
 
@@ -330,10 +379,17 @@ myKeys = myKeyBindings ++
   and run xmonad. We also spawn an instance of xmobar and pipe
   content into it via the logHook..
 -}
-
+main :: IO ()
 main = do
-  xmproc <- spawnPipe "xmobar ~/.xmonad/xmobarrc"
-  xmonad $ withUrgencyHook NoUrgencyHook $ defaultConfig {
+  dbus <- D.connectSession
+  getWellKnownName dbus
+  -- xmonad $ gnomeConfig
+  --      { logHook = dynamicLogWithPP (prettyPrinter dbus)
+  --      }
+
+
+  -- xmproc <- spawnPipe "~/.cabal/bin/xmobar ~/.xmonad/xmobarrc"
+  xmonad $ withUrgencyHook NoUrgencyHook $ gnomeConfig {
     focusedBorderColor = myFocusedBorderColor
   , normalBorderColor = myNormalBorderColor
   , terminal = myTerminal
@@ -349,16 +405,29 @@ main = do
   , manageHook = manageHook defaultConfig
       <+> composeAll myManagementHooks
       <+> manageDocks
-  , logHook = dynamicLogWithPP $ xmobarPP {
-      ppOutput = hPutStrLn xmproc
-      , ppTitle = xmobarColor myTitleColor "" . shorten myTitleLength
-      , ppCurrent = xmobarColor myCurrentWSColor ""
-        . wrap myCurrentWSLeft myCurrentWSRight
-      , ppVisible = xmobarColor myVisibleWSColor ""
-        . wrap myVisibleWSLeft myVisibleWSRight
-      , ppUrgent = xmobarColor myUrgentWSColor ""
-        . wrap myUrgentWSLeft myUrgentWSRight
-      , ppSort = mkWsSort getXineramaPhysicalWsCompare
-    }
+
+  , logHook = dynamicLogWithPP (prettyPrinter dbus)
+  -- , logHook = dynamicLogWithPP $ xmobarPP {
+  --     ppOutput = hPutStrLn xmproc
+  --     , ppTitle = xmobarColor myTitleColor "" . shorten myTitleLength
+  --     , ppCurrent = xmobarColor myCurrentWSColor ""
+  --       . wrap myCurrentWSLeft myCurrentWSRight
+  --     , ppVisible = xmobarColor myVisibleWSColor ""
+  --       . wrap myVisibleWSLeft myVisibleWSRight
+  --     , ppUrgent = xmobarColor myUrgentWSColor ""
+  --       . wrap myUrgentWSLeft myUrgentWSRight
+  --     , ppSort = mkWsSort getXineramaPhysicalWsCompare
+  --   }
   }
     `additionalKeys` myKeys
+
+
+-- main :: IO ()
+-- main = do
+--     dbus <- D.connectSession
+--     getWellKnownName dbus
+--     xmonad $ gnomeConfig
+--          {
+--            logHook = dynamicLogWithPP (prettyPrinter dbus)
+--          , modMask = myModMask
+--          }
