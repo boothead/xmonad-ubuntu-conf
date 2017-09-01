@@ -19,9 +19,10 @@ module Main where
 
 import qualified Data.Map                     as M
 import           Data.Ratio                   ((%))
+import           GHC.IO.Handle.Types          (Handle)
 import           XMonad
 import           XMonad.Actions.Plane
-import           XMonad.Config.Gnome
+import           XMonad.Config.Xfce
 import           XMonad.Hooks.DynamicLog
 import           XMonad.Hooks.ManageDocks
 import           XMonad.Hooks.SetWMName
@@ -44,8 +45,20 @@ import qualified DBus                         as D
 import qualified DBus.Client                  as D
 
 
-prettyPrinter :: D.Client -> PP
-prettyPrinter dbus = defaultPP
+prettyPrinter :: Handle -> PP
+prettyPrinter h = xmobarPP
+    { ppOutput   = hPutStrLn h
+    , ppTitle    = xmobarColor "green"  "" . shorten 40
+    , ppCurrent  = xmobarColor "green" "" . wrap "[" "]" . pangoSanitize
+    , ppVisible  = xmobarColor "yellow" "" . wrap "(" ")" . pangoSanitize
+    , ppHidden   = const ""
+    , ppUrgent   = xmobarColor "red" "yellow"
+    , ppLayout   = const ""
+    , ppSep      = " "
+    }
+
+logAppletPrinter :: D.Client -> PP
+logAppletPrinter dbus = defaultPP
     { ppOutput   = dbusOutput dbus
     , ppTitle    = pangoSanitize
     , ppCurrent  = pangoColor "green" . wrap "[" "]" . pangoSanitize
@@ -68,6 +81,13 @@ dbusOutput dbus str = do
             D.signalBody = [D.toVariant ("<b>" ++ (UTF8.decodeString str) ++ "</b>")]
         }
     D.emit dbus signal
+
+
+-- pangoColor :: String -> String -> String
+-- pangoColor fg = wrap left right
+--   where
+--     left  = "<fc=\"" ++ fg ++ "\">"
+--     right = "</fc>"
 
 pangoColor :: String -> String -> String
 pangoColor fg = wrap left right
@@ -93,7 +113,7 @@ myModMask            = mod4Mask       -- changes the mod key to "super"
 myFocusedBorderColor = "#ff0000"      -- color of focused border
 myNormalBorderColor  = "#cccccc"      -- color of inactive border
 myBorderWidth        = 1              -- width of border around windows
-myTerminal           = "gnome-terminal"   -- which terminal software to use
+myTerminal           = "konsole"   -- which terminal software to use
 myIMRosterTitle      = "Contact List" -- title of roster on IM workspace
 
 
@@ -190,10 +210,6 @@ defaultLayouts = smartBorders(avoidStruts(
   -- right of the master window. You can resize using "super-h" and
   -- "super-l".
   ||| ThreeColMid 1 (3/100) (3/4)
-
-  -- Circle layout places the master window in the center of the screen.
-  -- Remaining windows appear in a circle around it
-  ||| Circle
   ))
 
 
@@ -256,6 +272,7 @@ myKeyBindings =
     , ((myModMask, xK_z), sendMessage MirrorExpand)
     , ((myModMask, xK_p), spawn "synapse")
     , ((myModMask, xK_u), focusUrgent)
+    , ((myModMask .|. shiftMask, xK_q), spawn "xfce4-session-logout")
     , ((0, 0x1008FF12), spawn "amixer -q set Master toggle")
     , ((0, 0x1008FF11), spawn "amixer -q set Master 10%-")
     , ((0, 0x1008FF13), spawn "amixer -q set Master 10%+")
@@ -381,45 +398,29 @@ myKeys = myKeyBindings ++
 -}
 main :: IO ()
 main = do
+  h <- spawnPipe "xmobar ~/.xmonad/xmobarrc"
   dbus <- D.connectSession
   getWellKnownName dbus
-  -- xmonad $ gnomeConfig
-  --      { logHook = dynamicLogWithPP (prettyPrinter dbus)
-  --      }
-
-
-  -- xmproc <- spawnPipe "~/.cabal/bin/xmobar ~/.xmonad/xmobarrc"
-  xmonad $ withUrgencyHook NoUrgencyHook $ gnomeConfig {
+  xmonad (xfceConfig {
     focusedBorderColor = myFocusedBorderColor
   , normalBorderColor = myNormalBorderColor
   , terminal = myTerminal
   , borderWidth = myBorderWidth
   , layoutHook = myLayouts
+  -- , logHook = dynamicLogWithPP $ prettyPrinter h
+  , logHook = dynamicLogWithPP $ logAppletPrinter dbus
   , workspaces = myWorkspaces
   , modMask = myModMask
   , handleEventHook = fullscreenEventHook
   , startupHook = do
       setWMName "LG3D"
       windows $ W.greedyView startupWorkspace
-      spawn "~/.xmonad/startup-hook"
   , manageHook = manageHook defaultConfig
       <+> composeAll myManagementHooks
       <+> manageDocks
 
-  , logHook = dynamicLogWithPP (prettyPrinter dbus)
-  -- , logHook = dynamicLogWithPP $ xmobarPP {
-  --     ppOutput = hPutStrLn xmproc
-  --     , ppTitle = xmobarColor myTitleColor "" . shorten myTitleLength
-  --     , ppCurrent = xmobarColor myCurrentWSColor ""
-  --       . wrap myCurrentWSLeft myCurrentWSRight
-  --     , ppVisible = xmobarColor myVisibleWSColor ""
-  --       . wrap myVisibleWSLeft myVisibleWSRight
-  --     , ppUrgent = xmobarColor myUrgentWSColor ""
-  --       . wrap myUrgentWSLeft myUrgentWSRight
-  --     , ppSort = mkWsSort getXineramaPhysicalWsCompare
-  --   }
   }
-    `additionalKeys` myKeys
+    `additionalKeys` myKeys)
 
 
 -- main :: IO ()

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/nix/var/nix/profiles/default/bin/zsh
 #
 # xmonad startup script. Intended to be run from an xsession configuration
 # to run xmonad and some associated programs.
