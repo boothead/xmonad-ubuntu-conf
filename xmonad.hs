@@ -14,6 +14,7 @@
   Repository: https://github.com/davidbrewer/xmonad-ubuntu-conf
 -}
 
+import Data.Default (def)
 import qualified Data.Map                     as M
 import           Data.Ratio                   ((%))
 import           XMonad
@@ -23,7 +24,7 @@ import           XMonad.Hooks.ManageDocks
 import           XMonad.Hooks.SetWMName
 import           XMonad.Hooks.UrgencyHook
 import           XMonad.Layout.Circle
-import           XMonad.Layout.Fullscreen
+-- import           XMonad.Layout.Fullscreen
 import           XMonad.Layout.Grid
 import           XMonad.Layout.IM
 import           XMonad.Layout.NoBorders
@@ -32,8 +33,11 @@ import           XMonad.Layout.ResizableTile
 import           XMonad.Layout.ThreeColumns
 import qualified XMonad.StackSet              as W
 import           XMonad.Util.EZConfig
+import           XMonad.Config.Xfce
 import           XMonad.Util.Run
 import           XMonad.Util.WorkspaceCompare
+import XMonad.Hooks.EwmhDesktops
+import Graphics.X11.ExtraTypes.XF86
 
 {-
   Xmonad configuration variables. These settings control some of the
@@ -44,7 +48,7 @@ myModMask            = mod4Mask       -- changes the mod key to "super"
 myFocusedBorderColor = "#ff0000"      -- color of focused border
 myNormalBorderColor  = "#cccccc"      -- color of inactive border
 myBorderWidth        = 1              -- width of border around windows
-myTerminal           = "gnome-terminal"   -- which terminal software to use
+myTerminal           = "terminator"
 myIMRosterTitle      = "Contact List" -- title of roster on IM workspace
 
 
@@ -58,12 +62,6 @@ myTitleLength    = 80         -- truncate window title to this length
 myCurrentWSColor = "#e6744c"  -- color of active workspace
 myVisibleWSColor = "#c185a7"  -- color of inactive workspace
 myUrgentWSColor  = "#cc0000"  -- color of workspace with 'urgent' window
-myCurrentWSLeft  = "["        -- wrap active workspace with these
-myCurrentWSRight = "]"
-myVisibleWSLeft  = "("        -- wrap inactive workspace with these
-myVisibleWSRight = ")"
-myUrgentWSLeft  = "{"         -- wrap urgent workspace with these
-myUrgentWSRight = "}"
 
 
 {-
@@ -87,13 +85,19 @@ myUrgentWSRight = "}"
 
 myWorkspaces =
   [
-    "7:Chat",  "8:Dbg", "9:Pix",
-    "4:Docs",  "5:Dev", "6:Web",
-    "1:Term",  "2:Hub", "3:Mail",
-    "0:VM",    "Extr1", "Extr2"
+    "Term",  "Hub", "Mail",
+    "Docs",  "Dev", "Web",
+    "Chat",  "Dbg", "Pix"
   ]
 
-startupWorkspace = "5:Dev"  -- which workspace do you want to be on after launch?
+numKeys =
+  [
+      xK_1, xK_2, xK_3
+    , xK_4, xK_5, xK_6
+    , xK_7, xK_8, xK_9
+  ]
+
+startupWorkspace = "Dev"  -- which workspace do you want to be on after launch?
 
 {-
   Layout configuration. In this section we identify which xmonad
@@ -114,12 +118,12 @@ startupWorkspace = "5:Dev"  -- which workspace do you want to be on after launch
 -- appear if there is more than one visible window.
 -- "avoidStruts" modifier makes it so that the layout provides
 -- space for the status bar at the top of the screen.
-defaultLayouts = smartBorders(avoidStruts(
-  -- ResizableTall layout has a large master window on the left,
-  -- and remaining windows tile on the right. By default each area
-  -- takes up half the screen, but you can resize using "super-h" and
-  -- "super-l".
-  ResizableTall 1 (3/100) (1/2) []
+defaultLayouts = (
+      -- ResizableTall layout has a large master window on the left,
+      -- and remaining windows tile on the right. By default each area
+      -- takes up half the screen, but you can resize using "super-h" and
+      -- "super-l".
+      ResizableTall 1 (3/100) (1/2) []
 
   -- Mirrored variation of ResizableTall. In this layout, the large
   -- master window is at the top, and remaining windows tile at the
@@ -144,7 +148,7 @@ defaultLayouts = smartBorders(avoidStruts(
 
   -- Circle layout places the master window in the center of the screen.
   -- Remaining windows appear in a circle around it
-  ||| Circle))
+  ||| Circle)
 
 
 -- Here we define some layouts which will be assigned to specific
@@ -169,8 +173,8 @@ gimpLayout = smartBorders(avoidStruts(ThreeColMid 1 (3/100) (3/4)))
 -- Here we combine our default layouts with our specific, workspace-locked
 -- layouts.
 myLayouts =
-  onWorkspace "7:Chat" chatLayout
-  $ onWorkspace "9:Pix" gimpLayout
+  onWorkspace "Chat" chatLayout
+  $ onWorkspace "Pix" gimpLayout
   $ defaultLayouts
 
 
@@ -199,15 +203,12 @@ myLayouts =
 -}
 
 myKeyBindings =
-  [
-    ((myModMask, xK_b), sendMessage ToggleStruts)
-    , ((myModMask, xK_a), sendMessage MirrorShrink)
-    , ((myModMask, xK_z), sendMessage MirrorExpand)
-    , ((myModMask, xK_p), spawn "synapse")
-    , ((myModMask, xK_u), focusUrgent)
-    , ((0, 0x1008FF12), spawn "amixer -q set Master toggle")
-    , ((0, 0x1008FF11), spawn "amixer -q set Master 10%-")
-    , ((0, 0x1008FF13), spawn "amixer -q set Master 10%+")
+  [ ((myModMask, xK_b), sendMessage ToggleStruts)
+  , ((myModMask, xK_a), sendMessage MirrorShrink)
+  , ((myModMask, xK_z), sendMessage MirrorExpand)
+  , ((myModMask, xK_p), spawn "rofi -show run")
+  , ((myModMask .|. shiftMask, xK_p), spawn "rofi -show window")
+  , ((myModMask, xK_u), focusUrgent)
   ]
 
 
@@ -257,15 +258,10 @@ myKeyBindings =
 myManagementHooks :: [ManageHook]
 myManagementHooks = [
   resource =? "synapse" --> doIgnore
-  , resource =? "stalonetray" --> doIgnore
   , className =? "rdesktop" --> doFloat
-  , (className =? "Komodo IDE") --> doF (W.shift "5:Dev")
-  , (className =? "Komodo IDE" <&&> resource =? "Komodo_find2") --> doFloat
-  , (className =? "Komodo IDE" <&&> resource =? "Komodo_gotofile") --> doFloat
-  , (className =? "Komodo IDE" <&&> resource =? "Toplevel") --> doFloat
-  , (className =? "Empathy") --> doF (W.shift "7:Chat")
-  , (className =? "Pidgin") --> doF (W.shift "7:Chat")
-  , (className =? "Gimp-2.8") --> doF (W.shift "9:Pix")
+  , (className =? "Empathy") --> doF (W.shift "Chat")
+  , (className =? "Pidgin") --> doF (W.shift "Chat")
+  , (className =? "Gimp-2.8") --> doF (W.shift "Pix")
   ]
 
 
@@ -292,13 +288,6 @@ numPadKeys =
     , xK_KP_Insert, xK_KP_Delete, xK_KP_Enter
   ]
 
-numKeys =
-  [
-    xK_7, xK_8, xK_9
-    , xK_4, xK_5, xK_6
-    , xK_1, xK_2, xK_3
-    , xK_0, xK_minus, xK_equal
-  ]
 
 -- Here, some magic occurs that I once grokked but has since
 -- fallen out of my head. Essentially what is happening is
@@ -331,34 +320,45 @@ myKeys = myKeyBindings ++
   content into it via the logHook..
 -}
 
+myStartHook = do
+  setWMName "LG3D"
+  windows $ W.greedyView startupWorkspace
+  spawn "~/.xmonad/startup-hook"
+
 main = do
-  xmproc <- spawnPipe "xmobar ~/.xmonad/xmobarrc"
-  xmonad $ withUrgencyHook NoUrgencyHook $ defaultConfig {
+  -- xmproc <- spawnPipe "xmobar ~/.xmonad/xmobarrc"
+  xmonad $ ewmh $ docks $ xfceConfig {
     focusedBorderColor = myFocusedBorderColor
   , normalBorderColor = myNormalBorderColor
   , terminal = myTerminal
   , borderWidth = myBorderWidth
-  , layoutHook = myLayouts
+  , layoutHook = avoidStruts $ defaultLayouts
   , workspaces = myWorkspaces
   , modMask = myModMask
   , handleEventHook = fullscreenEventHook
-  , startupHook = do
-      setWMName "LG3D"
-      windows $ W.greedyView startupWorkspace
-      spawn "~/.xmonad/startup-hook"
-  , manageHook = manageHook defaultConfig
-      <+> composeAll myManagementHooks
-      <+> manageDocks
-  , logHook = dynamicLogWithPP $ xmobarPP {
-      ppOutput = hPutStrLn xmproc
-      , ppTitle = xmobarColor myTitleColor "" . shorten myTitleLength
-      , ppCurrent = xmobarColor myCurrentWSColor ""
-        . wrap myCurrentWSLeft myCurrentWSRight
-      , ppVisible = xmobarColor myVisibleWSColor ""
-        . wrap myVisibleWSLeft myVisibleWSRight
-      , ppUrgent = xmobarColor myUrgentWSColor ""
-        . wrap myUrgentWSLeft myUrgentWSRight
-      , ppSort = mkWsSort getXineramaPhysicalWsCompare
-    }
+  , startupHook = myStartHook >> startupHook xfceConfig
+  , manageHook = manageDocks <+> composeAll myManagementHooks
+  -- , logHook = dynamicLogWithPP $ xmobarPP {
+  --     ppOutput = hPutStrLn xmproc
+  --     , ppTitle = xmobarColor myTitleColor "" . shorten myTitleLength
+  --     , ppCurrent = xmobarColor myCurrentWSColor ""
+  --       . wrap myCurrentWSLeft myCurrentWSRight
+  --     , ppVisible = xmobarColor myVisibleWSColor ""
+  --       . wrap myVisibleWSLeft myVisibleWSRight
+  --     , ppUrgent = xmobarColor myUrgentWSColor ""
+  --       . wrap myUrgentWSLeft myUrgentWSRight
+  --     , ppSort = mkWsSort getXineramaPhysicalWsCompare
+    -- }
   }
     `additionalKeys` myKeys
+
+brighten :: Int -> X ()
+brighten n = liftIO $ do
+    currentBacklight <- readFile "/sys/class/backlight/intel_backlight/brightness"
+    length currentBacklight `seq` (writeFile "/sys/class/backlight/intel_backlight/brightness" (show . guard $ (read currentBacklight :: Int) + n))
+
+-- | Don't let the brightness be obnoxious
+guard :: Int -> Int
+guard = (gu 2000) . (gl 0)
+    where gu m n = if n > m then m else n
+          gl m n = if n < m then m else n
