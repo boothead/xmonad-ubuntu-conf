@@ -30,10 +30,11 @@ import           XMonad.Layout.IM
 import           XMonad.Layout.NoBorders
 import           XMonad.Layout.PerWorkspace   (onWorkspace)
 import           XMonad.Layout.ResizableTile
+import           XMonad.Layout.SimplestFloat
 import           XMonad.Layout.ThreeColumns
 import qualified XMonad.StackSet              as W
 import           XMonad.Util.EZConfig
-import           XMonad.Config.Xfce
+import XMonad.Config.Xfce
 import           XMonad.Util.Run
 import           XMonad.Util.WorkspaceCompare
 import XMonad.Hooks.EwmhDesktops
@@ -48,7 +49,7 @@ myModMask            = mod4Mask       -- changes the mod key to "super"
 myFocusedBorderColor = "#ff0000"      -- color of focused border
 myNormalBorderColor  = "#cccccc"      -- color of inactive border
 myBorderWidth        = 1              -- width of border around windows
-myTerminal           = "terminator"
+myTerminal           = "xfce4-terminal --hide-menubar"
 myIMRosterTitle      = "Contact List" -- title of roster on IM workspace
 
 
@@ -148,7 +149,7 @@ defaultLayouts = (
 
   -- Circle layout places the master window in the center of the screen.
   -- Remaining windows appear in a circle around it
-  ||| Circle)
+  ||| simplestFloat)
 
 
 -- Here we define some layouts which will be assigned to specific
@@ -173,8 +174,9 @@ gimpLayout = smartBorders(avoidStruts(ThreeColMid 1 (3/100) (3/4)))
 -- Here we combine our default layouts with our specific, workspace-locked
 -- layouts.
 myLayouts =
-  onWorkspace "Chat" chatLayout
-  $ onWorkspace "Pix" gimpLayout
+  onWorkspace "chat" chatLayout
+  $ onWorkspace "pix" gimpLayout
+  $ onWorkspace "video" simplestFloat
   $ defaultLayouts
 
 
@@ -282,10 +284,9 @@ myManagementHooks = [
 -- uses the arrow keys.
 numPadKeys =
   [
-    xK_KP_Home, xK_KP_Up, xK_KP_Page_Up
+      xK_KP_End, xK_KP_Down, xK_KP_Page_Down
     , xK_KP_Left, xK_KP_Begin,xK_KP_Right
-    , xK_KP_End, xK_KP_Down, xK_KP_Page_Down
-    , xK_KP_Insert, xK_KP_Delete, xK_KP_Enter
+    , xK_KP_Home, xK_KP_Up, xK_KP_Page_Up
   ]
 
 
@@ -311,9 +312,22 @@ myKeys = myKeyBindings ++
       >>= flip whenJust (windows . f))
       | (key, sc) <- zip [xK_w, xK_e, xK_r] [0,1,2]
       , (f, m) <- [(W.view, 0), (W.shift, shiftMask)]
+  ] ++
+  []
+
+lowerVolume    = "<XF86AudioLowerVolume>"
+lowerVolumeCMD = "amixer set Master 10%-"
+raiseVolume    = "<XF86AudioRaiseVolume>"
+raiseVolumeCMD = "amixer set Master 10%+ unmute"
+muteVolume     = "<XF86AudioMute>"
+muteVolumeCMD  = "amixer -q set Master toggle"
+
+keyMappings :: [(String, X ())]
+keyMappings = [
+    (raiseVolume  , spawn raiseVolumeCMD               ) -- raise volume
+  , (lowerVolume  , spawn lowerVolumeCMD               ) -- lower volume
+  , (muteVolume   , spawn muteVolumeCMD                ) -- mute volume
   ]
-
-
 {-
   Here we actually stitch together all the configuration settings
   and run xmonad. We also spawn an instance of xmobar and pipe
@@ -327,7 +341,7 @@ myStartHook = do
 
 main = do
   -- xmproc <- spawnPipe "xmobar ~/.xmonad/xmobarrc"
-  xmonad $ ewmh $ docks $ xfceConfig {
+  xmonad $ ewmh $ docks $ xfceConfig  {
     focusedBorderColor = myFocusedBorderColor
   , normalBorderColor = myNormalBorderColor
   , terminal = myTerminal
@@ -336,7 +350,7 @@ main = do
   , workspaces = myWorkspaces
   , modMask = myModMask
   , handleEventHook = fullscreenEventHook
-  , startupHook = myStartHook >> startupHook xfceConfig
+  -- , startupHook = myStartHook
   , manageHook = manageDocks <+> composeAll myManagementHooks
   -- , logHook = dynamicLogWithPP $ xmobarPP {
   --     ppOutput = hPutStrLn xmproc
@@ -351,6 +365,7 @@ main = do
     -- }
   }
     `additionalKeys` myKeys
+    `additionalKeysP` keyMappings
 
 brighten :: Int -> X ()
 brighten n = liftIO $ do
